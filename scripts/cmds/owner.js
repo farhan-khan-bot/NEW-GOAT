@@ -37,7 +37,7 @@ try {
   const ownerAge = "𝟐𝟎";
 
   // ===== CONTACT =====
-  const facebook = "fb.com/MR.MUNNA.220";
+  const facebook = "fb.com/FARHAN.AHAMED.MUNNA.420";
   const whatsapp = "wa.me/+8801934640061";
   const telegram = "t.me/DEVIL_FARHAN_420";
   const youtube = "yb.com/@munna-vai-mbs";
@@ -79,7 +79,7 @@ try {
   const videoPath = path.join(cacheDir, "owner.mp4");
 
   // ===== VIDEO URL =====
-  const videoUrl = "https://files.catbox.moe/wzosnu.mp4";
+  const videoUrl = "https://files.catbox.moe/fh7i6b.mp4";
 
   // ===== DOWNLOAD VIDEO =====
   const response = await axios({
