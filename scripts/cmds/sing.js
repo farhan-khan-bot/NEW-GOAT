@@ -1,83 +1,134 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const yts = require("yt-search");
+const fs = require("fs-extra");
+const path = require("path");
+const { downloadVideo } = require("joy-video-downloader");
+
+// 🔐 SAFE WRAPPER (prevents clearLine / stderr crash issues)
+function safeRun(fn) {
+  try {
+    return fn();
+  } catch (e) {
+    return null;
+  }
+}
 
 module.exports = {
   config: {
-    name: 'sing',
-    author: 'MR_FARHAN',
-    usePrefix: false,
-    category: 'Youtube Song Downloader'
+    name: "sing",
+    version: "9.2.0",
+    author: "𝆠፝𝗙𝗔𝗥𝗛𝗔𝗡-𝗞𝗛𝗔𝗡",
+    role: 0,
+    description: "Stable YouTube music downloader",
+    prefix: true,
+    category: "media",
+    usages: "song <name/link>",
+    cooldowns: 5
   },
-  onStart: async ({ event, api, args, message }) => {
-    try {
-      const query = args.join(' ');
-      if (!query) return message.reply('Please provide a search query!');
-      
-      const searchResponse = await axios.get(`https://mostakim.onrender.com/mostakim/ytSearch?search=${encodeURIComponent(query)}`);
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
-      const parseDuration = (timestamp) => {
-        const parts = timestamp.split(':').map(part => parseInt(part));
-        let seconds = 0;
+  onStart: async function ({ api, event, args }) {
+    const { threadID, messageID } = event;
 
-        if (parts.length === 3) {
-          seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-        } else if (parts.length === 2) {
-          seconds = parts[0] * 60 + parts[1];
-        }
-
-        return seconds;
-      };
-
-      const filteredVideos = searchResponse.data.filter(video => {
-        try {
-          const totalSeconds = parseDuration(video.timestamp);
-          return totalSeconds < 600;
-        } catch {
-          return false;
-        }
-      });
-
-      if (filteredVideos.length === 0) {
-        return message.reply('No short videos found (under 10 minutes)!');
-      }
-
-      const selectedVideo = filteredVideos[0];
-      const tempFilePath = path.join(__dirname, 'temp_audio.m4a');
-      const apiResponse = await axios.get(`https://mostakim.onrender.com/m/sing?url=${selectedVideo.url}`);
-      
-      if (!apiResponse.data.url) {
-        throw new Error('No audio URL found in response');
-      }
-
-      const writer = fs.createWriteStream(tempFilePath);
-      const audioResponse = await axios({
-        url: apiResponse.data.url,
-        method: 'GET',
-        responseType: 'stream'
-      });
-
-      audioResponse.data.pipe(writer);
-      
-      await new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      });
-
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
-
-      await message.reply({
-        body: `🎧 Now playing: ${selectedVideo.title}\nDuration: ${selectedVideo.timestamp}`,
-        attachment: fs.createReadStream(tempFilePath)
-      });
-
-      fs.unlink(tempFilePath, (err) => {
-        if (err) message.reply(`Error deleting temp file: ${err.message}`);
-      });
-
-    } catch (error) {
-      message.reply(`Error: ${error.message}`);
+    if (!args.length) {
+      return api.sendMessage(
+        "⚠️ গান নাম বা YouTube link দিন",
+        threadID,
+        messageID
+      );
     }
+
+    let query = args.join(" ");
+    let ytLink = query;
+
+    try {
+      // 🔍 YouTube search
+      if (!ytLink.includes("youtu")) {
+        const search = await yts(query);
+
+        if (!search?.videos?.length) {
+          return api.sendMessage(
+            "❌ গান পাওয়া যায়নি",
+            threadID,
+            messageID
+          );
+        }
+
+        ytLink = search.videos[0].url;
+      }
+
+      
+      api.setMessageReaction("⏳", messageID, () => {}, true);
+
+      const loading = await api.sendMessage(
+        "🎧 Downloading...",
+        threadID
+      );
+
+      
+      const cacheDir = path.join(__dirname, "cache");
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+      }
+
+      const filePath = path.join(
+        cacheDir,
+        `song_${Date.now()}.mp3`
+      );
+
+      // 🎵 download (safe execution)
+      const data = await downloadVideo(ytLink, filePath);
+
+      if (!data || !data.filePath) {
+        api.unsendMessage(loading.messageID);
+        api.setMessageReaction("❌", messageID, () => {}, true);
+
+        return api.sendMessage(
+          "❌ গান ডাউনলোড ব্যর্থ হয়েছে",
+          threadID,
+          messageID
+        );
+      }
+
+      const title = data.title || "Unknown Song";
+      const savedPath = data.filePath;
+
+      api.unsendMessage(loading.messageID);
+      api.setMessageReaction("✅", messageID, () => {}, true);
+
+      // 🎧 send song
+      return api.sendMessage(
+        {
+          body:
+`🎵 SONG DOWNLOADED
+
+📌 Title: ${title}
+🔗 Link: ${ytLink}
+👑 𝗢𝗪𝗡𝗘𝗥 𝆠፝𝗙𝗔𝗥𝗛𝗔𝗡-𝗞𝗛𝗔𝗡 👑`,
+
+          attachment: fs.createReadStream(savedPath)
+        },
+        threadID,
+        () => {
+          safeRun(() => {
+            if (fs.existsSync(savedPath)) fs.unlinkSync(savedPath);
+          });
+        },
+        messageID
+      );
+
+    } catch (err) {
+      console.log("Song Error:", err);
+
+      api.setMessageReaction("❌", messageID, () => {}, true);
+
+      return api.sendMessage(
+        "❌সমস্যা হয়েছে 🚨বস ফারহান এর ইনবক্সে নক দাও🌚 https://www.facebook.com/FARHAN.AHAMED.MUNNA.420",
+        threadID,
+        messageID
+      );
+    }
+  },
+
+  run: async function (data) {
+    return module.exports.onStart(data);
   }
 };
