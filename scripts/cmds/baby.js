@@ -21,7 +21,7 @@ const mahmud = [
 ];
 
 const baseApiUrl = async () => {
-        const base = await axios.get("https://noobs-api.top/dipto/baby");
+        const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
         return base.data.mahmud;
 };
 
