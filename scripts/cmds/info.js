@@ -24,7 +24,7 @@ module.exports = {
     // OWNER INFO
     const ownerName = "FARHAN-KHAN";
     const ownerAge = "20+";
-    const ownerFB = "https://m.me/MR.MUNNA.220";
+    const ownerFB = "https://m.me/FARHAN.AHAMED.MUNNA.420";
     const ownerNumber = "01934640061";
     const status = "Active";
 
@@ -69,10 +69,10 @@ module.exports = {
 ‎║🚻>𝗚𝗲𝗻𝗱𝗲𝗿:-  [>𝗠𝗮𝗹𝗲<]
 ‎‎╠══════════════════╣
 ‎║🌐>𝗙𝗮𝗰𝗲𝗯𝗼𝗼𝗸:-↓
-‎║→fb.com/MR.MUNNA.220                           
+‎║→fb.com/FARHAN.AHAMED.MUNNA.420                           
 ‎║
 ‎║💬>𝗠𝗲𝘀𝘀𝗲𝗻𝗴𝗲𝗿:-↓
-‎║https://m.me/MR.MUNNA.220
+‎║https://m.me/FARHAN.AHAMED.MUNNA.420
 ‎║
 ‎║📞>𝗪𝗵𝗮𝘁𝘀𝗔𝗽𝗽:-↓
 ‎║→[>wa.me/+8801934640061<]        
