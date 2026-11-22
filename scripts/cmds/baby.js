@@ -3,7 +3,7 @@ const axios = require("axios");
 const mahmud = [
         "babu",
         "bbz",
-        "বট",
+        "",
         "𝙗𝙤𝙩",
         "sizu",
         "baby",
