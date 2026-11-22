@@ -1,82 +1,110 @@
-const axios = require("axios");
-
-const getBase = async () => {
-        const res = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-        return res.data.mahmud;
-};
+const nx = require("axios");
+const nxForm = require("form-data");
+const nxFs = require("fs-extra");
+const nxPath = require("path");
 
 module.exports = {
-        config: {
-                name: "catbox",
-                aliases: ["cb"],
-                version: "1.7",
-                author: "MahMUD",
-                countDown: 10,
-                role: 0,
-                description: {
-                        bn: "যেকোনো মিডিয়া ফাইলকে লিঙ্কে রূপান্তর করুন",
-                        en: "Convert any media file into a link",
-                        vi: "Chuyển đổi bất kỳ tệp phương tiện nào thành liên kết"
-                },
-                category: "tools",
-                guide: {
-                        bn: '   {pn}: যেকোনো ছবি/ভিডিওতে রিপ্লাই দিয়ে ব্যবহার করুন',
-                        en: '   {pn}: Reply to any image/video to get the link',
-                        vi: '   {pn}: Phản hồi bất kỳ ảnh/video nào để lấy liên kết'
-                }
-        },
+  config: {
+    name: "catbox",
+    aliases: ["cb"],
+    version: "3.5",
+    author: "xalman",
+    countDown: 5,
+    role: 0,
+    shortDescription: "Upload media to Catbox (supports multiple)",
+    longDescription: "Upload image/video/audio to Catbox.moe and get direct link",
+    category: "UTILITY",
+    guide: { en: "Reply to a message containing media with {pn}" }
+  },
 
-        langs: {
-                bn: {
-                        noMedia: "× বেবি, একটি ছবি বা ভিডিওতে রিপ্লাই দাও!",
-                        error: "× সমস্যা হয়েছে: %1। প্রয়োজনে Contact Farhan।\n•WhatsApp: 01934640061"
-                },
-                en: {
-                        noMedia: "× Baby, please reply to a media file!",
-                        error: "× API error: %1. Contact Farhan for help.\n•WhatsApp: 01934640061"
-                },
-                vi: {
-                        noMedia: "× Cưng ơi, hãy phản hồi một tệp phương tiện!",
-                        error: "× Lỗi: %1. Liên hệ Farhan để hỗ trợ.\n•WhatsApp: 01934640061"
-                }
-        },
+  onStart: async function ({ api, event }) {
+    const nx210 = event.threadID;
+    const nxId = event.messageID;
+    const nxReply = event.messageReply;
 
-        onStart: async function ({ api, event, message, getLang }) {
-                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
-                if (this.config.author !== authorName) {
-                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
-                }
+    if (!nxReply || !nxReply.attachments || nxReply.attachments.length === 0) {
+      return api.sendMessage("❌ Please reply to an image, video, or audio file.", nx210, nxId);
+    }
 
-                if (event.type !== "message_reply" || !event.messageReply.attachments.length) {
-                        return message.reply(getLang("noMedia"));
-                }
+    const nxFiles = nxReply.attachments.filter(att =>
+      ["photo", "animated_image", "video", "audio"].includes(att.type)
+    );
 
-                try {
-                        api.setMessageReaction("⌛", event.messageID, () => {}, true);
+    if (nxFiles.length === 0) {
+      return api.sendMessage("❌ No valid media found in the replied message.", nx210, nxId);
+    }
 
-                        const attachmentUrl = event.messageReply.attachments[0].url;
-                        const baseUrl = await getBase();
-                        
-                        const response = await axios.get(`${baseUrl}/api/catbox`, {
-                                params: {
-                                        url: attachmentUrl
-                                },
-                                timeout: 100000
-                        });
+    api.setMessageReaction("🤱", nxId, () => {}, true);
 
-                        if (response.data.status && response.data.link) {
-                                const replyLink = response.data.link;
-                                api.setMessageReaction("✅", event.messageID, () => {}, true);
-                                return message.reply(replyLink);
-                        } else {
-                                throw new Error("API response status is false.");
-                        }
+    const nxCache = nxPath.join(__dirname, "cache");
+    if (!nxFs.existsSync(nxCache)) nxFs.mkdirSync(nxCache, { recursive: true });
 
-                } catch (err) {
-                        console.error("Catbox Error:", err);
-                        api.setMessageReaction("❌", event.messageID, () => {}, true);
-                        const errorMsg = err.response?.data?.error || err.message;
-                        return message.reply(getLang("error", errorMsg));
-                }
-        }
+    try {
+      const nxResults = await Promise.all(
+        nxFiles.map(async (att, i) => {
+          const nxExt = att.type === "photo" ? "jpg" : att.type === "video" ? "mp4" : "mp3";
+          const nxFile = nxPath.join(nxCache, `nx_catbox_${Date.now()}_${i}.${nxExt}`);
+
+          try {
+            const nxGet = await nx({
+              method: "GET",
+              url: att.url,
+              responseType: "stream",
+              headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+            });
+
+            const nxWriter = nxFs.createWriteStream(nxFile);
+            nxGet.data.pipe(nxWriter);
+
+            await new Promise((resolve, reject) => {
+              nxWriter.on("finish", resolve);
+              nxWriter.on("error", reject);
+            });
+
+            const nxData = new nxForm();
+            nxData.append("reqtype", "fileupload");
+            nxData.append("fileToUpload", nxFs.createReadStream(nxFile));
+
+            const nxRes = await nx.post("https://catbox.moe/user/api.php", nxData, {
+              headers: {
+                ...nxData.getHeaders(),
+                "User-Agent": "NX-Uploader/1.0 (Mozilla/5.0)"
+              },
+              timeout: 60000
+            });
+
+            if (nxFs.existsSync(nxFile)) nxFs.unlinkSync(nxFile);
+
+            if (nxRes.data && nxRes.data.startsWith("https://")) {
+              return { success: true, url: nxRes.data.trim() };
+            }
+            return { success: false };
+
+          } catch (err) {
+            if (nxFs.existsSync(nxFile)) {
+              try { nxFs.unlinkSync(nxFile); } catch {}
+            }
+            return { success: false };
+          }
+        })
+      );
+
+      const nxOk = nxResults.filter(r => r.success);
+
+      if (nxOk.length === 0) {
+        api.setMessageReaction("❌", nxId, () => {}, true);
+        return api.sendMessage("❌ All uploads failed. Please try again.", nx210, nxId);
+      }
+
+      api.setMessageReaction("✅", nxId, () => {}, true);
+
+      const nxLinks = nxOk.map(r => r.url).join("\n\n");
+      return api.sendMessage(nxLinks, nx210, nxId);
+
+    } catch (err) {
+      console.error("NX Catbox Error:", err);
+      api.setMessageReaction("❌", nxId, () => {}, true);
+      return api.sendMessage("❌ Failed to upload media to Catbox.", nx210, nxId);
+    }
+  }
 };
